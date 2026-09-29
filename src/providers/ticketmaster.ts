@@ -1,7 +1,7 @@
 import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 import { z } from "zod";
 import { getEnv } from "@/lib/env";
-import { canonicalVenueName, normalizeText } from "@/lib/normalize";
+import { canonicalVenueName, encodeGeohash, normalizeText } from "@/lib/normalize";
 import { normalizeTicketStatus } from "@/lib/ticket-status";
 import type { EventProvider, EventSearchInput, NormalizedEvent } from "@/lib/types";
 
@@ -55,11 +55,12 @@ export function normalizeTicketmasterItem(raw: unknown): NormalizedEvent | null 
     : fromZonedTime(`${item.dates.start.localDate}T${item.dates.start.localTime ?? "20:00:00"}`, zone);
   if (Number.isNaN(startAt.getTime())) return null;
   const genres = item.classifications?.flatMap((c) => [c.genre?.name, c.subGenre?.name].filter((x): x is string => Boolean(x) && x !== "Undefined")) ?? [];
+  const artists = (item._embedded?.attractions ?? []).map((a) => ({ name: a.name, normalizedName: normalizeText(a.name), externalId: a.id })).filter((artist, index, all) => all.findIndex((candidate) => candidate.normalizedName === artist.normalizedName) === index);
   const now = new Date();
   const venueName = canonicalVenueName(venue?.name ?? "Locatie onbekend");
   return {
     provider: "ticketmaster", externalId: item.id, title: item.name, normalizedTitle: normalizeText(item.name),
-    artists: (item._embedded?.attractions ?? []).map((a) => ({ name: a.name, normalizedName: normalizeText(a.name), externalId: a.id })),
+    artists,
     type: eventType(item.name, classification), startAt,
     endAt: item.dates.end?.dateTime ? new Date(item.dates.end.dateTime) : undefined,
     timeZone: zone, localDate: formatInTimeZone(startAt, "Europe/Amsterdam", "yyyy-MM-dd"),
@@ -84,7 +85,7 @@ export class TicketmasterProvider implements EventProvider {
   private async request(params: Record<string, string>): Promise<NormalizedEvent[]> {
     if (!this.env.TICKETMASTER_API_KEY) throw new ProviderError("TICKETMASTER_API_KEY ontbreekt");
     const url = new URL("https://app.ticketmaster.com/discovery/v2/events.json");
-    Object.entries({ apikey: this.env.TICKETMASTER_API_KEY, countryCode: "NL", classificationName: "music", size: "100", ...params }).forEach(([k, v]) => url.searchParams.set(k, v));
+    Object.entries({ apikey: this.env.TICKETMASTER_API_KEY, countryCode: "NL", classificationName: "music", size: "200", includeTest: "no", ...params }).forEach(([k, v]) => url.searchParams.set(k, v));
     let response: Response;
     try { response = await fetch(url, { signal: AbortSignal.timeout(12_000), headers: { Accept: "application/json" } }); }
     catch { throw new ProviderError("Ticketmaster is niet bereikbaar (netwerkfout of time-out)"); }
@@ -102,11 +103,16 @@ export class TicketmasterProvider implements EventProvider {
 
   async searchByGeo(input: EventSearchInput) {
     const dates = { startDateTime: input.startDateTime.toISOString().replace(/\.\d{3}Z$/, "Z"), endDateTime: input.endDateTime.toISOString().replace(/\.\d{3}Z$/, "Z"), sort: "date,asc" };
-    return this.request({ ...dates, latlong: "52.3676,4.9041", radius: String(input.radiusKm ?? this.env.EVENT_SEARCH_RADIUS_KM), unit: "km" });
+    return this.request({ ...dates, geoPoint: encodeGeohash(52.3676, 4.9041), radius: String(input.radiusKm ?? this.env.EVENT_SEARCH_RADIUS_KM), unit: "km" });
   }
 
   async searchByKeyword(input: EventSearchInput, keyword: string) {
-    return this.request({ startDateTime: input.startDateTime.toISOString().replace(/\.\d{3}Z$/, "Z"), endDateTime: input.endDateTime.toISOString().replace(/\.\d{3}Z$/, "Z"), keyword, sort: "date,asc", size: "50" });
+    return this.request({ startDateTime: input.startDateTime.toISOString().replace(/\.\d{3}Z$/, "Z"), endDateTime: input.endDateTime.toISOString().replace(/\.\d{3}Z$/, "Z"), keyword, geoPoint: encodeGeohash(52.3676, 4.9041), radius: String(input.radiusKm ?? this.env.EVENT_SEARCH_RADIUS_KM), unit: "km", sort: "date,asc", size: "50" });
+  }
+
+  async searchByVenueIds(input: EventSearchInput, venueIds: string[]) {
+    if (!venueIds.length) return [];
+    return this.request({ startDateTime: input.startDateTime.toISOString().replace(/\.\d{3}Z$/, "Z"), endDateTime: input.endDateTime.toISOString().replace(/\.\d{3}Z$/, "Z"), venueId: venueIds.join(","), sort: "date,asc" });
   }
 
   async getEvent(externalId: string) {

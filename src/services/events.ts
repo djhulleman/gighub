@@ -1,6 +1,7 @@
 import { addDays, endOfDay, startOfDay } from "date-fns";
 import { db, LOCAL_USER_ID, ensureLocalUser } from "@/lib/db";
 import { scoreEvent, type TasteProfile } from "@/lib/scoring";
+import { areDuplicate } from "@/lib/dedupe";
 import type { NormalizedEvent } from "@/lib/types";
 
 export async function getTasteProfile(): Promise<TasteProfile> {
@@ -38,7 +39,8 @@ export function toNormalized(event: NonNullable<Awaited<ReturnType<typeof db.eve
 export async function listScoredEvents(options?: { from?: Date; to?: Date }) {
   const from = options?.from ?? startOfDay(new Date()); const to = options?.to ?? endOfDay(addDays(from, 7));
   const [events, profile] = await Promise.all([db.event.findMany({ where: { startAt: { gte: from, lte: to } }, include: { venue: true, artists: true, sources: true, savedBy: { where: { userId: LOCAL_USER_ID } } }, orderBy: { startAt: "asc" } }), getTasteProfile()]);
-  return events.map((event) => { const normalized = toNormalized(event); return { event, normalized, match: scoreEvent(normalized, profile), saved: event.savedBy.length > 0 }; }).filter((x) => !x.match.excluded);
+  const scored = events.map((event) => { const normalized = toNormalized(event); return { event, normalized, match: scoreEvent(normalized, profile), saved: event.savedBy.length > 0 }; }).filter((x) => !x.match.excluded);
+  return scored.reduce<typeof scored>((result, item) => result.some((existing) => areDuplicate(existing.normalized, item.normalized)) ? result : [...result, item], []);
 }
 
 export async function getScoredEvent(id: string) {

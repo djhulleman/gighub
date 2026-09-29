@@ -7,9 +7,9 @@ export function RefreshButton() {
   async function refresh() {
     setState("loading"); setMessage("");
     try {
-      const response=await fetch("/api/sync/events",{method:"POST"}); const data=await response.json() as {error?:string;added?:number;updated?:number};
+      const response=await fetch("/api/sync/events",{method:"POST"}); const data=await response.json() as {error?:string;errorMessage?:string;status?:string;added?:number;updated?:number};
       if(!response.ok) throw new Error(data.error ?? "Verversen mislukt");
-      setState("done"); setMessage(`${data.added ?? 0} nieuw, ${data.updated ?? 0} bijgewerkt`);
+      setState("done"); setMessage(data.status==="CACHED"?"Recente resultaten gebruikt — over enkele minuten kun je opnieuw ophalen.":`${data.added ?? 0} nieuw, ${data.updated ?? 0} bijgewerkt${data.status==="PARTIAL"?` · gedeeltelijk gelukt${data.errorMessage?`: ${data.errorMessage}`:""}`:""}`);
       if ("Notification" in window && Notification.permission === "granted") {
         const candidates=await fetch("/api/notifications/candidates").then((r)=>r.json()) as {events?:{id:string;title:string;body:string}[]};
         for(const event of candidates.events ?? []) { new Notification(event.title,{body:event.body}); await fetch("/api/notifications/log",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({eventId:event.id})}); }

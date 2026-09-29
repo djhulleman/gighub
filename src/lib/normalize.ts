@@ -1,4 +1,4 @@
-const NOISE = /\b(live|tickets?|tour|world tour|eu tour|amsterdam)\b/gi;
+const NOISE = /\b(live|tickets?|tour|world tour|eu tour|amsterdam|sold out|premium seats?|sky lounge|venue premium packages?|premium packages?|presenteert|presents)\b/gi;
 
 export function normalizeText(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(NOISE, " ").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
@@ -29,3 +29,16 @@ export function canonicalVenueName(value: string): string {
 }
 
 export function canonicalVenueKey(value: string): string { return normalizeText(canonicalVenueName(value)); }
+
+export function encodeGeohash(latitude: number, longitude: number, precision = 7): string {
+  const alphabet = "0123456789bcdefghjkmnpqrstuvwxyz";
+  const lat: [number, number] = [-90, 90]; const lon: [number, number] = [-180, 180];
+  let even = true; let bit = 0; let value = 0; let result = "";
+  while (result.length < precision) {
+    const range = even ? lon : lat; const coordinate = even ? longitude : latitude; const midpoint = (range[0] + range[1]) / 2;
+    if (coordinate >= midpoint) { value = value * 2 + 1; range[0] = midpoint; } else { value *= 2; range[1] = midpoint; }
+    even = !even; bit++;
+    if (bit === 5) { result += alphabet[value]; bit = 0; value = 0; }
+  }
+  return result;
+}

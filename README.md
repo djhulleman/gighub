@@ -67,7 +67,7 @@ Actuele Spotify-aandachtspunten (gecontroleerd op 29 september 2026):
 - [Authorization Code Flow](https://developer.spotify.com/documentation/web-api/tutorials/code-flow) ondersteunt langdurige toegang via refresh tokens en adviseert `state` tegen CSRF.
 - [Development Mode en quota](https://developer.spotify.com/documentation/web-api/concepts/quota-modes): de app-eigenaar heeft Premium nodig, maximaal vijf geautoriseerde gebruikers kunnen worden toegevoegd en iedere gebruiker moet op de allowlist staan. Sinds de [quota-update van juli 2026](https://developer.spotify.com/blog/2026-07-23-web-api-quota-updates) delen Development Mode-apps quota per developeraccount.
 - [Rate limits](https://developer.spotify.com/documentation/web-api/concepts/rate-limits) gebruiken onder meer `429` en doorgaans `Retry-After`.
-- Spotify-genres kunnen leeg, grofmazig of onvolledig zijn. Daarom combineert de score Spotify-artiesten met handmatige genres en providerclassificaties. Verwijderde recommendations- en audio-features-endpoints worden niet gebruikt.
+- Spotify-genres kunnen leeg, grofmazig of onvolledig zijn en het artiestgenreveld is deprecated. Daarom combineert de score Spotify-artiesten met gekozen genres en providerclassificaties. De genreselector wordt automatisch gevuld uit actuele eventdata plus een vaste muziektaxonomie; de gebruiker hoeft geen vrije genretekst toe te voegen. Verwijderde recommendations- en audio-features-endpoints worden niet gebruikt.
 - Spotify-metadata en afbeeldingen worden met een teruglink naar Spotify gepresenteerd. Zie de attributienotitie in de [officiële Web API-reference](https://developer.spotify.com/documentation/web-api/reference/get-track). Spotify-content wordt niet aangepast, gedownload of voor ML gebruikt.
 
 ## Ticketmaster instellen
@@ -79,13 +79,14 @@ Actuele Spotify-aandachtspunten (gecontroleerd op 29 september 2026):
 De implementatie gebruikt alleen de officiële [Discovery API v2](https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/) en filtert op Nederland en `music`. De zoekstrategie combineert:
 
 - Amsterdam als stad;
-- coördinaten van Amsterdam met `EVENT_SEARCH_RADIUS_KM`;
-- afzonderlijke zoekopdrachten voor een onderhouden selectie bekende venues;
+- de officiële `geoPoint`-zoekparameter rond Amsterdam met `EVENT_SEARCH_RADIUS_KM`;
+- één gebundelde venue-ID-query voor officieel herkende catalogusvenues;
+- aanvullende, regionaal begrensde zoekopdrachten voor maximaal vijf persoonlijke topartiesten;
 - een gemeenschappelijk datumbereik van zes maanden.
 
 Resultaten worden gevalideerd, genormaliseerd en in SQLite gecachet. Eén ongeldig evenement breekt de batch niet. Zoekresultaten worden eerst op provider/externe ID en vervolgens conservatief op artiest/titel, lokale datum en venue-alias gededupliceerd. Bronverwijzingen blijven apart opgeslagen. `SyncRun` registreert gevonden, toegevoegd, bijgewerkt, overgeslagen en mislukt.
 
-Ticketmaster noemt standaard **5 requests per seconde en 5.000 per dag**, plus een deep-paginggrens; zie de [Discovery API-documentatie](https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/). De app doet daarom alleen expliciete, begrensde synchronisaties en leest daarna uit de lokale cache. De [Ticketmaster-gebruiksvoorwaarden](https://developer.ticketmaster.com/support/terms-of-use/) blijven van toepassing.
+Ticketmaster noemt standaard **5 requests per seconde en 5.000 per dag**, plus een deep-paginggrens; zie de [Discovery API-documentatie](https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/). De app voert providerrequests sequentieel en getemporiseerd uit, bundelt venue-ID’s, gebruikt maximaal vijf persoonlijke artiestzoekopdrachten en leest daarna vijf minuten uit de lokale cache. De [Ticketmaster-gebruiksvoorwaarden](https://developer.ticketmaster.com/support/terms-of-use/) blijven van toepassing.
 
 ### Datadekking en ticketstatus
 
