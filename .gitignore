@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.env.local
+.env
+dev.db
+dev.db-journal
+*.db
+*.db-journal
+coverage/
+generated/
+*.tsbuildinfo

@@ -1,0 +1,5 @@
+import { expect,it } from "vitest";
+import { calendarToIcs,escapeIcs } from "@/lib/ics";
+import type { NormalizedEvent } from "@/lib/types";
+it("escapet ICS-tekst",()=>expect(escapeIcs("A, B; C\\D\nE")).toBe("A\\, B\\; C\\\\D\\nE"));
+it("maakt een unieke UID en UTC-tijd vanuit Amsterdamse eventdata",()=>{const event:NormalizedEvent={provider:"ticketmaster",externalId:"abc",title:"Test",normalizedTitle:"test",artists:[],type:"CONCERT",startAt:new Date("2026-10-03T18:00:00Z"),timeZone:"Europe/Amsterdam",localDate:"2026-10-03",venue:{name:"Paradiso",normalizedName:"paradiso",city:"Amsterdam"},city:"Amsterdam",genres:[],classifications:["Music"],officialUrl:"https://example.com",ticketStatus:"UNKNOWN",lastCheckedAt:new Date(),lastSyncedAt:new Date()};const result=calendarToIcs([event]);expect(result).toContain("UID:ticketmaster-abc@amsterdam-gig-scout.local");expect(result).toContain("DTSTART:20261003T180000Z");expect(result).toContain("X-WR-TIMEZONE:Europe/Amsterdam");expect(result).not.toContain("DTEND")});

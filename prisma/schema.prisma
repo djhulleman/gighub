@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id String @id
+  displayName String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  spotifyConnection SpotifyConnection?
+  artistPreferences ArtistPreference[]
+  genrePreferences GenrePreference[]
+  excludedArtists ExcludedArtist[]
+  excludedGenres ExcludedGenre[]
+  savedEvents SavedEvent[]
+  dismissedEvents DismissedEvent[]
+  impressions EventImpression[]
+  notificationSettings NotificationSettings?
+  notificationLogs NotificationLog[]
+  syncRuns SyncRun[]
+  topPeriods SpotifyTopArtistPeriod[]
+}
+
+model SpotifyConnection {
+  id String @id @default(cuid())
+  userId String @unique
+  accessTokenEncrypted String
+  refreshTokenEncrypted String
+  expiresAt DateTime
+  scope String
+  spotifyUserId String?
+  lastSyncedAt DateTime?
+  invalidatedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SpotifyArtist {
+  id String @id @default(cuid())
+  spotifyId String @unique
+  name String
+  spotifyUrl String
+  imageUrl String?
+  genresJson String @default("[]")
+  metadataJson String @default("{}")
+  syncedAt DateTime
+  periods SpotifyTopArtistPeriod[]
+}
+
+model SpotifyTopArtistPeriod {
+  id String @id @default(cuid())
+  userId String
+  artistId String
+  period String
+  rank Int
+  enabled Boolean @default(true)
+  syncedAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist SpotifyArtist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  @@unique([userId, artistId, period])
+  @@index([userId, period])
+}
+
+model ArtistPreference {
+  id String @id @default(cuid())
+  userId String
+  name String
+  normalizedName String
+  spotifyId String?
+  spotifyUrl String?
+  imageUrl String?
+  weight String @default("INTERESTING")
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, normalizedName])
+}
+
+model GenrePreference {
+  id String @id @default(cuid())
+  userId String
+  name String
+  normalizedName String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, normalizedName])
+}
+
+model ExcludedArtist {
+  id String @id @default(cuid())
+  userId String
+  name String
+  normalizedName String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, normalizedName])
+}
+
+model ExcludedGenre {
+  id String @id @default(cuid())
+  userId String
+  name String
+  normalizedName String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, normalizedName])
+}
+
+model Venue {
+  id String @id @default(cuid())
+  name String
+  normalizedName String @unique
+  aliasesJson String @default("[]")
+  city String @default("Amsterdam")
+  address String?
+  latitude Float?
+  longitude Float?
+  providerIdsJson String @default("{}")
+  events Event[]
+}
+
+model Event {
+  id String @id @default(cuid())
+  canonicalKey String @unique
+  title String
+  normalizedTitle String
+  type String @default("UNKNOWN")
+  startAt DateTime
+  endAt DateTime?
+  timeZone String @default("Europe/Amsterdam")
+  localDate String
+  city String
+  latitude Float?
+  longitude Float?
+  genresJson String @default("[]")
+  classificationsJson String @default("[]")
+  ticketStatus String @default("NOT_CHECKED")
+  rawTicketStatus String?
+  officialUrl String
+  imageUrl String?
+  lastCheckedAt DateTime
+  lastSyncedAt DateTime
+  venueId String?
+  venue Venue? @relation(fields: [venueId], references: [id])
+  artists EventArtist[]
+  sources EventSource[]
+  savedBy SavedEvent[]
+  dismissedBy DismissedEvent[]
+  impressions EventImpression[]
+  notificationLogs NotificationLog[]
+  @@index([startAt])
+}
+
+model EventArtist {
+  id String @id @default(cuid())
+  eventId String
+  name String
+  normalizedName String
+  externalId String?
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@unique([eventId, normalizedName])
+}
+
+model EventSource {
+  id String @id @default(cuid())
+  eventId String
+  provider String
+  externalId String
+  url String
+  rawStatus String?
+  lastSeenAt DateTime
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@unique([provider, externalId])
+}
+
+model SavedEvent {
+  id String @id @default(cuid())
+  userId String
+  eventId String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@unique([userId, eventId])
+}
+
+model DismissedEvent {
+  id String @id @default(cuid())
+  userId String
+  eventId String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@unique([userId, eventId])
+}
+
+model EventImpression {
+  id String @id @default(cuid())
+  userId String
+  eventId String
+  firstShownAt DateTime @default(now())
+  lastShownAt DateTime @default(now())
+  count Int @default(1)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@unique([userId, eventId])
+}
+
+model NotificationSettings {
+  id String @id @default(cuid())
+  userId String @unique
+  enabled Boolean @default(false)
+  minimumScore Int @default(70)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationLog {
+  id String @id @default(cuid())
+  userId String
+  eventId String
+  provider String
+  sentAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@unique([userId, eventId, provider])
+}
+
+model SyncRun {
+  id String @id @default(cuid())
+  userId String
+  kind String
+  provider String
+  status String @default("RUNNING")
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  found Int @default(0)
+  added Int @default(0)
+  updated Int @default(0)
+  skipped Int @default(0)
+  failed Int @default(0)
+  errorMessage String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, kind, startedAt])
+}

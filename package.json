@@ -1,0 +1,46 @@
+{
+  "name": "amsterdam-gig-scout",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "prisma generate && next build",
+    "start": "next start --hostname 127.0.0.1",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "prisma generate && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:live": "vitest run tests/live",
+    "db:migrate": "tsx scripts/init-db.ts",
+    "db:seed": "tsx prisma/seed.ts",
+    "postinstall": "prisma generate && tsx scripts/init-db.ts"
+  },
+  "prisma": { "seed": "tsx prisma/seed.ts" },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "date-fns": "4.1.0",
+    "date-fns-tz": "3.2.0",
+    "dotenv": "17.2.3",
+    "next": "16.3.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.1.11"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.3.7",
+    "jsdom": "27.2.0",
+    "prisma": "7.10.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "4.0.15"
+  },
+  "engines": { "node": ">=22.12 <25" }
+}

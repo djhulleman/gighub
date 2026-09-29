@@ -1,0 +1,6 @@
+import { db, LOCAL_USER_ID } from "@/lib/db";
+import { getTasteProfile, toNormalized } from "@/services/events";
+import { scoreEvent } from "@/lib/scoring";
+import { EventRow } from "@/components/event-row";
+export const dynamic="force-dynamic";
+export default async function SavedPage(){const [saved,profile]=await Promise.all([db.savedEvent.findMany({where:{userId:LOCAL_USER_ID},include:{event:{include:{venue:true,artists:true,sources:true,savedBy:{where:{userId:LOCAL_USER_ID}}}}},orderBy:{createdAt:"desc"}}),getTasteProfile()]);const items=saved.map(x=>{const normalized=toNormalized(x.event);return{event:x.event,normalized,match:scoreEvent(normalized,profile),saved:true}});return <><div className="eyebrow">Jouw selectie</div><h1>Opgeslagen avonden.</h1><p className="lead">Een rustige plek voor alles waar je nog een kaartje, vriend of vrije avond voor nodig hebt.</p>{items.length?<><p><a className="button secondary" href="/api/calendar/saved">Exporteer alles als .ics</a></p><div className="event-list">{items.map(x=><EventRow key={x.event.id} item={x}/>)}</div></>:<div className="empty"><h3>Nog niets opgeslagen</h3><p className="muted">Open een evenement en kies Opslaan.</p></div>}</>}
